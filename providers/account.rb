@@ -117,17 +117,25 @@ def user_resource(exec_action)
 end
 
 def dir_resource(exec_action)
-  ["#{@my_home}/.ssh", @my_home].each do |dir|
-    r = directory dir do
-      owner       new_resource.username
-      group       Etc.getpwnam(new_resource.username).gid
-      mode        dir =~ %r{/\.ssh$} ? '0700' : node['user']['home_dir_mode']
-      recursive   true
-      action      :nothing
-    end
-    r.run_action(exec_action)
-    new_resource.updated_by_last_action(true) if r.updated_by_last_action?
+  rs = directory ::File.join(@my_home, ".ssh") do
+    owner       new_resource.username
+    group       Etc.getpwnam(new_resource.username).gid
+    mode        "0700"
+    recursive   true
+    action      :nothing
   end
+  rs.run_action(exec_action)
+
+  rh = directory @my_home do
+    owner       new_resource.username
+    group       Etc.getpwnam(new_resource.username).gid
+    mode        new_resource.home_dir_mode || node['user']['home_dir_mode']
+    recursive   true
+    action      :nothing
+  end
+  rh.run_action(exec_action)
+
+  new_resource.updated_by_last_action(true) if rs.updated_by_last_action? || rh.updated_by_last_action?
 end
 
 def authorized_keys_resource(exec_action)
